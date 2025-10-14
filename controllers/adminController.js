@@ -14,6 +14,7 @@ exports.listOrders = async (req, res, next) => {
     res.json({ page, limit, total, items });
   } catch(err){ next(err); }
 };
+
 exports.updateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;

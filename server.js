@@ -17,6 +17,7 @@ const emailWorker = require('./workers/emailWorker');
 const app = express();
 app.use(morgan('dev'));
 app.use(express.json());
+
 // Connect to MongoDB
 connectDB();
 
@@ -35,12 +36,4 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// const start = async () => {
-//   await connectDB(process.env.MONGO_URI || 'mongodb://localhost:27017/ecommerce');
-//   app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
-// };
 
-// start().catch(err => {
-//   console.error('Failed to start', err);
-//   process.exit(1);
-// });
