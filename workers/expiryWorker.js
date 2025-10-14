@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
+const Order = require('../models/orderModel');
+const Product = require('../models/productModel');
 const ORDER_TIMEOUT_MIN = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MINUTES || '15', 10);
 
 const checkAndExpireOrders = async () => {

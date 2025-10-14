@@ -11,12 +11,14 @@ const orderRoutes = require('./routes/orderRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const errorHandler = require('./middleware/errorMiddleware');
 
-// const emailWorker = require('./workers/emailWorker'); // starts automatically
-// const expiryWorker = require('./workers/expiryWorker'); // starts automatically
+const emailWorker = require('./workers/emailWorker'); 
+ const expiryWorker = require('./workers/expiryWorker'); 
 
 const app = express();
 app.use(morgan('dev'));
 app.use(express.json());
+// Connect to MongoDB
+connectDB();
 
 app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
@@ -29,12 +31,16 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 
-const start = async () => {
-  await connectDB(process.env.MONGO_URI || 'mongodb://localhost:27017/ecommerce');
-  app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
-};
-
-start().catch(err => {
-  console.error('Failed to start', err);
-  process.exit(1);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
+
+// const start = async () => {
+//   await connectDB(process.env.MONGO_URI || 'mongodb://localhost:27017/ecommerce');
+//   app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+// };
+
+// start().catch(err => {
+//   console.error('Failed to start', err);
+//   process.exit(1);
+// });
