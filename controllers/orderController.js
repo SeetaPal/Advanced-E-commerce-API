@@ -10,6 +10,7 @@ const Joi = require('joi');
 const checkoutSchema = Joi.object({ }); 
 
 
+
 exports.checkout = async (req, res, next) => {
   try {
     const cart = await Cart.findOne({ userId: req.user._id });
@@ -54,48 +55,52 @@ exports.checkout = async (req, res, next) => {
   }
 };
 
-exports.pay = async (req, res, next) => {
+
+exports.pay = async (req, res) => {
   try {
-    const { id } = req.params;
-    const order = await Order.findById(id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.userId.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Not your order' });
-    if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Order not in PENDING_PAYMENT state' });
+    const orderId = req.params.id;
+    const userId = req.user.id;
+    const { succeed = true } = req.body; // simulate success/failure
 
-    const succeed = req.body.succeed !== false; // default succeed
-    const transactionId = `txn_${Date.now()}`;
+    const order = await Order.findOne({ _id: orderId, userId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
 
-    if (!succeed) {
-      await Payment.create({ orderId: order._id, transactionId, amount: order.totalAmount, status: 'FAILED' });
+    if (order.status !== 'PENDING_PAYMENT') {
+      return res.status(400).json({ message: 'Order cannot be paid again' });
+    }
+
+    const payment = new Payment({
+      orderId: order._id,
+      transactionId: `txn_${Date.now()}`,
+      amount: order.totalAmount,
+      status: succeed ? 'SUCCESS' : 'FAILED',
+    });
+
+    await payment.save();
+
+    if (succeed) {
+      order.status = 'PAID';
+      order.paidAt = new Date();
+      await order.save();
+
+      res.status(200).json({ message: 'Payment successful', order });
+    } else {
+      // Payment failed → release stock immediately
       for (const item of order.items) {
-        await Product.findByIdAndUpdate(item.productId, { $inc: { reservedStock: -item.quantity } });
+        await Product.updateOne(
+          { _id: item.productId },
+          { $inc: { reservedStock: -item.quantity } }
+        );
       }
       order.status = 'CANCELLED';
       await order.save();
-      return res.status(200).json({ message: 'Payment failed, order cancelled' });
+
+      res.status(400).json({ message: 'Payment failed, order cancelled' });
     }
-
-    // Payment succeeded
-    await Payment.create({ orderId: order._id, transactionId, amount: order.totalAmount, status: 'SUCCESS' });
-
-    for (const item of order.items) {
-      const prod = await Product.findById(item.productId);
-      if (!prod || prod.reservedStock < item.quantity) return res.status(409).json({ error: 'Reserved stock inconsistent' });
-      prod.totalStock -= item.quantity;
-      prod.reservedStock -= item.quantity;
-      if (prod.totalStock < 0) return res.status(500).json({ error: 'Stock underflow' });
-      await prod.save();
-    }
-
-    order.status = 'PAID';
-    await order.save();
-
-    // Dispatch async email job
-    queue.enqueue('send_confirmation_email', { orderId: order._id.toString(), userId: order.userId.toString() });
-
-    res.json({ message: 'Payment successful', orderId: order._id });
   } catch (err) {
-    next(err);
+    res.status(500).json({ message: err.message });
   }
 };
 
